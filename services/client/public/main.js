@@ -10,7 +10,7 @@ var store = {
       avatar: null,
       activeRoom: "general",
       lastTyping: Date.now(),
-      belowMessagesView: "message-input",
+      belowMessagesView: "login",
       presentCount: 0,
     },
 
@@ -359,21 +359,24 @@ Vue.component("messages", {
 Vue.component("message-input", {
   template: `<div class="message-input">
     <div class="wrap">
-    <input type="text" v-on:focus="check" id='textbox' v-on:keydown.enter="submit" v-on:keydown="startTyping" placeholder="Write your message..." />
-    <button class="submit" v-on:click="submit"><i class="fa fa-paper-plane" aria-hidden="true"></i></button>
+    <input
+      id='textbox'
+      type="text"
+      placeholder="채팅입력창..."
+      @keydown="startTyping"
+      @keydown.enter.prevent="submit"
+    />
+    <button
+      class="submit"
+      @click="submit">
+      <i class="fa fa-paper-plane" aria-hidden="true"></i>
+    </button>
     </div>
   </div>`,
   data: function () {
     return store.data
   },
   methods: {
-    check: function () {
-      if (!store.data.state.authenticated) {
-        // Must hide self and show the login panel
-        store.data.state.belowMessagesView = "login"
-      }
-    },
-
     startTyping: function (event) {
       if (
         !store.data.state.authenticated ||
@@ -405,6 +408,9 @@ Vue.component("message-input", {
     submit: function () {
       var textbox = this.$el.querySelector("#textbox")
       var text = textbox.value.trim()
+
+      console.log(text)
+      textbox.value = null
       var self = this
 
       if (text === "") {
@@ -468,8 +474,10 @@ Vue.component("login", {
 
         store.data.state.username = response.username
         store.data.state.avatar = response.avatar
+
         store.data.state.authenticated = true
         store.data.state.belowMessagesView = "message-input"
+
         console.log("logged in")
       })
     },
@@ -479,6 +487,11 @@ Vue.component("login", {
 new Vue({
   el: "#frame",
   data: store.data,
+})
+
+socket.emit("room list", function (err, rooms) {
+  store.data.rooms = store.data.rooms.concat(rooms)
+  store.switchRoom(store.data.rooms[0].id)
 })
 
 // Listen for new messages from the server, and add them to the local store.
@@ -494,11 +507,6 @@ socket.on("typing", function (typer) {
 // Listen for typers from the server and add to the local store
 socket.on("stop typing", function (typer) {
   store.removeTyper(typer)
-})
-
-socket.emit("room list", function (err, rooms) {
-  store.data.rooms = store.data.rooms.concat(rooms)
-  store.switchRoom(store.data.rooms[0].id)
 })
 
 socket.on("user joined", function (joined) {
@@ -525,10 +533,10 @@ socket.on("presence", function (presence) {
   store.data.state.presentCount = presence.numUsers
 })
 
-// Capture the enter key if not already captured by the textbox.
-document.onkeydown = function (evt) {
-  evt = evt || window.event
-  if (evt.keyCode === 13) {
-    document.getElementById("textbox").focus()
-  }
-}
+// // Capture the enter key if not already captured by the textbox.
+// document.onkeydown = function (evt) {
+//   evt = evt || window.event
+//   if (evt.keyCode === 13) {
+//     document.getElementById("textbox").focus()
+//   }
+// }
