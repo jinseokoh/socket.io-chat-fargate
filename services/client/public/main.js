@@ -363,8 +363,9 @@ Vue.component("message-input", {
       id='textbox'
       type="text"
       placeholder="채팅입력창..."
+      @input="writing"
+      :value="message"
       @keydown="startTyping"
-      @keydown.enter.prevent="submit"
     />
     <button
       class="submit"
@@ -374,9 +375,12 @@ Vue.component("message-input", {
     </div>
   </div>`,
   data: function () {
-    return store.data
+    return { ...store.data, message: null }
   },
   methods: {
+    writing(e) {
+      this.message = e.target.value
+    },
     startTyping: function (event) {
       if (
         !store.data.state.authenticated ||
@@ -386,7 +390,7 @@ Vue.component("message-input", {
         event.keyCode === 91 ||
         event.keyCode === 92
       ) {
-        return
+        return this.submit()
       }
 
       var now = Date.now()
@@ -406,22 +410,19 @@ Vue.component("message-input", {
     },
 
     submit: function () {
-      var textbox = this.$el.querySelector("#textbox")
-      var text = textbox.value.trim()
-
-      console.log(text)
-      textbox.value = null
       var self = this
 
-      if (text === "") {
+      if (this.message.trim() === "") {
         return
       }
+
+      console.log(this.message)
 
       socket.emit(
         "new message",
         {
           room: this.state.activeRoom,
-          message: text,
+          message: this.message,
         },
         function (err, message) {
           if (err) {
@@ -439,7 +440,7 @@ Vue.component("message-input", {
 
       socket.emit("stop typing", this.state.activeRoom)
 
-      textbox.value = ""
+      this.message = ""
     },
   },
 })
@@ -460,12 +461,12 @@ Vue.component("login", {
   </div>`,
   methods: {
     submit: function () {
-
       var $username = this.$el.querySelector(".username")
       var username = $username.value.trim()
-      var avatar = "https://www.gravatar.com/avatar/" +
-      CryptoJS.SHA256(username).toString() +
-      "?d=retro"
+      var avatar =
+        "https://www.gravatar.com/avatar/" +
+        CryptoJS.SHA256(username).toString() +
+        "?d=retro"
 
       socket.emit("pass user", { username, avatar }, function (err, response) {
         if (err) {
