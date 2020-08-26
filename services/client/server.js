@@ -147,155 +147,23 @@ io.on("connection", function (socket) {
     ])
   })
 
-  // Client wants to create a new account
-  socket.on("create user", async function (details, callback) {
-    if (!_.isFunction(callback)) {
-      return
-    }
+  socket.on("pass user", function (data, callback) {
 
-    if (socket.authenticated) {
-      return callback("User already has a logged in identity")
-    }
-
-    if (!details.username || !_.isString(details.username)) {
+    if (!data.username) {
       return callback("Must pass a parameter `username` which is a string")
     }
 
-    if (!details.email || !_.isString(details.email)) {
-      return callback("Must pass a parameter `email` which is a string")
+    if (!data.avatar) {
+      return callback("Must pass a parameter `avatar` which is a string")
     }
 
-    if (!details.password || !_.isString(details.password)) {
-      return callback("Must pass a parameter `password` which is a string")
-    }
-
-    details.password = details.password.trim().toLowerCase()
-    details.username = details.username.trim().toLowerCase()
-    details.email = details.email.trim().toLowerCase()
-
-    try {
-      await User.create({
-        username: details.username,
-        email: details.email,
-        password: details.password,
-      })
-    } catch (e) {
-      return callback(e.toString())
-    }
-
-    // Set details on the socket.
-    socket.authenticated = true
-    socket.username = details.username
-    socket.email = details.email
-    socket.avatar =
-      "https://www.gravatar.com/avatar/" +
-      crypto.createHash("md5").update(socket.email).digest("hex")
-
-    // Set the user as present.
-    Presence.upsert(socket.id, {
-      username: socket.username,
-    })
-    socket.present = true
-
-    Presence.list(function (users) {
-      socket.emit("login", {
-        numUsers: users.length,
-      })
-
-      // echo globally (all clients) that a person has connected
-      io.emit("user joined", {
-        username: socket.username,
-        avatar: socket.avatar,
-        numUsers: users.length,
-      })
-    })
-
-    return callback(null, {
-      username: socket.username,
-      avatar: socket.avatar,
-    })
-  })
-
-  // Client wants to authenticate a user
-  socket.on("authenticate user", async function (details, callback) {
-    if (!_.isFunction(callback)) {
-      return
-    }
-
-    if (socket.authenticated) {
-      return callback("User already has a logged in identity")
-    }
-
-    if (!details.username || !_.isString(details.username)) {
-      return callback("Must pass a parameter `username` which is a string")
-    }
-
-    if (!details.password || !_.isString(details.password)) {
-      return callback("Must pass a parameter `password` which is a string")
-    }
-
-    details.password = details.password.trim().toLowerCase()
-    details.username = details.username.trim().toLowerCase()
-
-    var result
-
-    try {
-      result = await User.authenticate({
-        username: details.username,
-        password: details.password,
-      })
-    } catch (e) {
-      return callback(e.toString())
-    }
-
-    if (!result) {
-      return callback("No matching account found")
-    }
-
-    // Set the details on the socket.
-    socket.authenticated = true
-    socket.username = result.username
-    socket.email = result.email
-    socket.avatar =
-      "https://www.gravatar.com/avatar/" +
-      crypto.createHash("md5").update(socket.email).digest("hex")
-
-    // Set the user as present.
-    Presence.upsert(socket.id, {
-      username: socket.username,
-    })
-    socket.present = true
-
-    Presence.list(function (users) {
-      socket.emit("login", {
-        numUsers: users.length,
-      })
-
-      // echo globally (all clients) that a person has connected
-      io.emit("user joined", {
-        username: socket.username,
-        avatar: socket.avatar,
-        numUsers: users.length,
-      })
-    })
-
-    return callback(null, {
-      username: socket.username,
-      avatar: socket.avatar,
-    })
-  })
-
-  socket.on("anonymous user", function (callback) {
     if (!_.isFunction(callback)) {
       return
     }
 
     socket.authenticated = true
-    socket.username = "anonymous_" + crypto.randomBytes(3).toString("hex")
-    socket.avatar =
-      "https://www.gravatar.com/avatar/" +
-      crypto.createHash("md5").update(socket.username).digest("hex") +
-      "?d=retro"
+    socket.username = data.username
+    socket.avatar = data.avatar
 
     // Set the user as present.
     Presence.upsert(socket.id, {

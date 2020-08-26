@@ -136,7 +136,7 @@ var store = {
   addTyper: function (typer) {
     typer.until = Date.now() + 3000 // add an expiration
     // Prevent dupes and the splice + push method triggers Vue update.
-    this.removeDuplicatedTyper(typer)
+    this.removeTyper(typer)
     this.data.typing.push(typer)
 
     if (!this._expireTypersInterval) {
@@ -148,7 +148,7 @@ var store = {
     }
   },
 
-  removeDuplicatedTyper: function (typer) {
+  removeTyper: function (typer) {
     for (var i = 0; i < this.data.typing.length; i++) {
       if (
         this.data.typing[i].username === typer.username &&
@@ -442,166 +442,36 @@ Vue.component("login", {
   template: `<div class='message-input-form'>
     <div class="wrap">
       <form name="form" v-on:submit.prevent="submit">
-        Login, <a href='#' v-on:click='createAccount'>create an account</a>, or <a href='#' v-on:click='anonymous'>stay anonymous</a> to chat:
-        <br /> <br />
         <div class="input-group">
           <span class="input-group-addon"><i class="glyphicon glyphicon-user"></i></span>
           <input type="text" class="username form-control" name="username" value="" placeholder="Username" required>
         </div>
-        <div class="input-group">
-          <span class="input-group-addon"><i class="glyphicon glyphicon-lock"></i></span>
-          <input type="password" class="password form-control" name="password" placeholder="Password" required>
-        </div>
         <div class="form-group">
-          <button class="btn btn-primary pull-right"><i class="glyphicon glyphicon-log-in"></i> Log in</button>
+          <button class="btn btn-primary pull-right"><i class="glyphicon glyphicon-log-in"></i> Submit</button>
         </div>
       </form>
     </div>
   </div>`,
   methods: {
-    anonymous: function () {
-      socket.emit("anonymous user", function (err, response) {
+    submit: function () {
+
+      var $username = this.$el.querySelector(".username")
+      var username = $username.value.trim()
+      var avatar = "https://www.gravatar.com/avatar/" +
+      CryptoJS.SHA256(username).toString() +
+      "?d=retro"
+
+      socket.emit("pass user", { username, avatar }, function (err, response) {
+        if (err) {
+          return console.error(err)
+        }
+
         store.data.state.username = response.username
         store.data.state.avatar = response.avatar
         store.data.state.authenticated = true
         store.data.state.belowMessagesView = "message-input"
         console.log("logged in")
       })
-    },
-
-    createAccount: function () {
-      store.data.state.belowMessagesView = "create-account"
-    },
-
-    submit: function () {
-      console.log("submit login")
-      var self = this
-
-      var $username = this.$el.querySelector(".username")
-      var username = $username.value.trim()
-
-      var $password = this.$el.querySelector(".password")
-      var password = $password.value.trim()
-
-      socket.emit(
-        "authenticate user",
-        {
-          username: username,
-          password: password,
-        },
-        function (err, response) {
-          if (err) {
-            console.error(err)
-
-            if (err === "No matching account found") {
-              self.error = "no-match"
-            }
-
-            return
-          }
-
-          store.data.state.username = response.username
-          store.data.state.avatar = response.avatar
-          store.data.state.authenticated = true
-          store.data.state.belowMessagesView = "message-input"
-
-          console.log("logged in")
-        }
-      )
-    },
-  },
-})
-
-Vue.component("create-account", {
-  template: `<div class='message-input-form'>
-    <div class="wrap">
-      <form name="form" id="create-form" v-on:submit.prevent="submit">
-        <a href='#' v-on:click='login'>Login</a>, create an account, or <a href='#' v-on:click='anonymous'>stay anonymous</a> to chat:
-        <br />
-        <br />
-        <p v-if="error=='username'" class="text-danger">Username is already taken</p> <br />
-        <div class="form-group" :class="{'has-error': error=='username'}">
-          <div class="input-group">
-            <span class="input-group-addon"><i class="glyphicon glyphicon-user"></i></span>
-            <input id="username" type="text" class="username form-control" name="username" value="" placeholder="Username" required>
-          </div>
-        </div>
-        <div class="form-group">
-          <div class="input-group">
-            <span class="input-group-addon"><i class="glyphicon glyphicon-envelope"></i></span>
-            <input type="text" class="email form-control" name="email" value="" placeholder="Email" required>
-          </div>
-        </div>
-        <div class="form-group">
-          <div class="input-group">
-            <span class="input-group-addon"><i class="glyphicon glyphicon-lock"></i></span>
-            <input type="password" class="password form-control" name="password" placeholder="Password" required>
-          </div>
-        </div>
-        <div class="form-group">
-          <button id="button" class="btn btn-primary pull-right"><i class="glyphicon glyphicon-log-in"></i> Create</button>
-        </div>
-      </form>
-    </div>
-  </div>`,
-  data: function () {
-    return {
-      error: "none",
-    }
-  },
-  methods: {
-    anonymous: function () {
-      socket.emit("anonymous user", function (err, response) {
-        store.data.state.username = response.username
-        store.data.state.avatar = response.avatar
-        store.data.state.authenticated = true
-        store.data.state.belowMessagesView = "message-input"
-        console.log("logged in")
-      })
-    },
-
-    login: function () {
-      store.data.state.belowMessagesView = "login"
-    },
-
-    submit: function () {
-      console.log("submit create account")
-      var self = this
-
-      var $username = this.$el.querySelector(".username")
-      var username = $username.value.trim()
-
-      var $password = this.$el.querySelector(".password")
-      var password = $password.value.trim()
-
-      var $email = this.$el.querySelector(".email")
-      var email = $email.value.trim()
-
-      socket.emit(
-        "create user",
-        {
-          username: username,
-          email: email,
-          password: password,
-        },
-        function (err, response) {
-          if (err) {
-            console.error(err)
-
-            if (err === "That username is taken already.") {
-              self.error = "username"
-            }
-
-            return
-          }
-
-          store.data.state.username = response.username
-          store.data.state.avatar = response.avatar
-          store.data.state.authenticated = true
-          store.data.state.belowMessagesView = "message-input"
-          console.log("logged in")
-        }
-      )
     },
   },
 })
