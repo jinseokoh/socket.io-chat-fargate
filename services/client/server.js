@@ -1,6 +1,5 @@
 // Setup basic express server
 var _ = require("lodash")
-var crypto = require("crypto")
 var express = require("express")
 var compression = require("compression")
 var path = require("path")
@@ -50,12 +49,13 @@ io.on("connection", function (socket) {
       return
     }
 
-    console.log(Date.now(), socket.id, socket.username)
+    // console.log(Date.now(), socket.id, socket.username)
 
     Presence.upsert(socket.id, {
       username: socket.username,
     })
   })
+
   // when the client emits 'new message', this listens and executes
   socket.on("new message", async function (data, callback) {
     if (!socket.authenticated) {
@@ -123,7 +123,7 @@ io.on("connection", function (socket) {
       {
         id: "fargate",
         name: "방이름 #2",
-        preview: "강원도영월",
+        preview: "강원도 태백",
         image: "/images/Flags_02.png",
         status: "none",
         onlineCount: 0,
@@ -148,7 +148,6 @@ io.on("connection", function (socket) {
   })
 
   socket.on("pass user", function (data, callback) {
-
     if (!data.username) {
       return callback("Must pass a parameter `username` which is a string")
     }
@@ -187,31 +186,6 @@ io.on("connection", function (socket) {
     return callback(null, {
       username: socket.username,
       avatar: socket.avatar,
-    })
-  })
-
-  // when the client emits 'typing', we broadcast it to others
-  socket.on("typing", function (room) {
-    if (!socket.authenticated) {
-      return
-    }
-
-    socket.broadcast.emit("typing", {
-      room: room,
-      username: socket.username,
-      avatar: socket.avatar,
-    })
-  })
-
-  // when the client emits 'stop typing', we broadcast it to others
-  socket.on("stop typing", function (room) {
-    if (!socket.authenticated) {
-      return
-    }
-
-    socket.broadcast.emit("stop typing", {
-      room: room,
-      username: socket.username,
     })
   })
 

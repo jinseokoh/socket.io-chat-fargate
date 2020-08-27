@@ -9,7 +9,6 @@ var store = {
       authenticated: false,
       avatar: null,
       activeRoom: "general",
-      lastTyping: Date.now(),
       belowMessagesView: "login",
       presentCount: 0,
     },
@@ -23,8 +22,6 @@ var store = {
       eks: [],
       fargate: [],
     },
-
-    typing: [],
 
     rooms: [],
 
@@ -50,11 +47,15 @@ var store = {
 
     var messageCount = this.data.messages[message.room].length
 
+    console.log("insert #1")
+
     if (messageCount === 0) {
       // Insert into empty store.
       this.data.messages[message.room].push(message)
       return
     }
+
+    console.log("insert #2")
 
     if (messageCount === 1) {
       // Insert second message
@@ -67,6 +68,8 @@ var store = {
       }
     }
 
+    console.log("insert #3")
+
     var last = this.data.messages[message.room][messageCount - 1]
 
     if (last.time < message.time) {
@@ -74,6 +77,8 @@ var store = {
       this.data.messages[message.room].push(message)
       return
     }
+
+    console.log("insert #4")
 
     var first = this.data.messages[message.room][0]
     if (first.time > message.time) {
@@ -111,53 +116,6 @@ var store = {
     this.data.activeRoom.status = "none" // Clear unread indicator
 
     this.data.activeMessages = this.data.messages[roomId]
-  },
-
-  // Helper function that runs on a schedule and expires any typers that
-  // have not emitted a typing event recently.
-  _expireTypersInterval: null,
-  _expireTypers: function () {
-    var now = Date.now()
-
-    for (var i = 0; i < this.data.typing.length; i++) {
-      if (this.data.typing[i].until < now) {
-        this.data.typing.splice(i, 1)
-      }
-    }
-
-    if (this.data.typing.length === 0) {
-      // No typers left so stop checking for then.
-      clearInterval(this._expireTypersInterval)
-      this._expireTypersInterval = null
-    }
-  },
-
-  // Mutate the data store to add a typing user.
-  addTyper: function (typer) {
-    typer.until = Date.now() + 3000 // add an expiration
-    // Prevent dupes and the splice + push method triggers Vue update.
-    this.removeTyper(typer)
-    this.data.typing.push(typer)
-
-    if (!this._expireTypersInterval) {
-      // Now that we have typers, start checking every 500ms to see if we need to expire one or more.
-      this._expireTypersInterval = setInterval(
-        this._expireTypers.bind(this),
-        500
-      )
-    }
-  },
-
-  removeTyper: function (typer) {
-    for (var i = 0; i < this.data.typing.length; i++) {
-      if (
-        this.data.typing[i].username === typer.username &&
-        this.data.typing[i].room === typer.room
-      ) {
-        this.data.typing.splice(i, 1)
-        break
-      }
-    }
   },
 
   // Helper function that runs on a schedule and expires any users that
@@ -251,14 +209,6 @@ Vue.component("messages", {
           <img :src="message.avatar" />
           <p>{{ message.content.text }}</p>
         </div>
-        <div v-if="currentRoomTypers.length > 0" class='message replies'>
-          <img v-for='typer in currentRoomTypers' :src="typer.avatar" />
-          <div class="typing-indicator">
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-        </div>
       </virtual-list>
     </div>
   `,
@@ -272,13 +222,6 @@ Vue.component("messages", {
     }
   },
   computed: {
-    currentRoomTypers: function () {
-      var currentRoom = this.state.activeRoom
-      return this.typing.filter(function (typer) {
-        return typer.room === currentRoom
-      })
-    },
-
     activeMessages: function () {
       return this.messages[this.state.activeRoom]
     },
@@ -365,7 +308,7 @@ Vue.component("message-input", {
       placeholder="채팅입력창..."
       @input="writing"
       :value="message"
-      @keydown="startTyping"
+      @keydown.enter.prevent="submit"
     />
     <button
       class="submit"
@@ -380,33 +323,6 @@ Vue.component("message-input", {
   methods: {
     writing(e) {
       this.message = e.target.value
-    },
-    startTyping: function (event) {
-      if (
-        !store.data.state.authenticated ||
-        event.keyCode === 13 ||
-        event.keyCode === 17 ||
-        event.keyCode === 18 ||
-        event.keyCode === 91 ||
-        event.keyCode === 92
-      ) {
-        return this.submit()
-      }
-
-      var now = Date.now()
-
-      if (store.data.state.lastTyping > now - 2000) {
-        // Already shared typing status less than two second ago.
-        return
-      }
-
-      socket.emit("typing", store.data.state.activeRoom)
-      store.addTyper({
-        room: store.data.state.activeRoom,
-        username: store.data.state.username,
-        avatar: store.data.state.avatar,
-      })
-      store.data.state.lastTyping = now
     },
 
     submit: function () {
@@ -430,15 +346,10 @@ Vue.component("message-input", {
           }
 
           store.insertMessage(message)
-          store.removeTyper({
-            room: self.state.activeRoom,
-            username: self.state.username,
-          })
-          store.data.state.lastTyping = 0
+
+          console.log(message)
         }
       )
-
-      socket.emit("stop typing", this.state.activeRoom)
 
       this.message = ""
     },
@@ -498,16 +409,6 @@ socket.emit("room list", function (err, rooms) {
 // Listen for new messages from the server, and add them to the local store.
 socket.on("new message", function (message) {
   store.liveMessage(message)
-})
-
-// Listen for typers from the server and add to the local store
-socket.on("typing", function (typer) {
-  store.addTyper(typer)
-})
-
-// Listen for typers from the server and add to the local store
-socket.on("stop typing", function (typer) {
-  store.removeTyper(typer)
 })
 
 socket.on("user joined", function (joined) {
