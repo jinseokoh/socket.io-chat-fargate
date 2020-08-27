@@ -82,7 +82,7 @@ io.on("connection", function (socket) {
     }
 
     // Store the messages in DynamoDB
-    messageBody.message = await Message.add(messageBody)
+    messageBody.msid = await Message.add(messageBody)
 
     socket.broadcast.emit("new message", messageBody)
 
@@ -147,7 +147,7 @@ io.on("connection", function (socket) {
     ])
   })
 
-  socket.on("pass user", function (data, callback) {
+  socket.on("init user", function (data, callback) {
     if (!data.username) {
       return callback("Must pass a parameter `username` which is a string")
     }

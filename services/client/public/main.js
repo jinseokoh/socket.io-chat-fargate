@@ -203,8 +203,21 @@ Vue.component("room-details", {
 Vue.component("messages", {
   template: `
     <div class='messages-wrapper'>
-      <virtual-list :size="50" :remain="8" :bench="44" class="list" :start="0" :totop='loadMore' :onscroll='scroll'>
-        <div :class="{ message: true, replies: message.username!=state.username, sent: message.username==state.username}" v-for="(message, index) of activeMessages" :index="message.message" :key="message.message">
+      {{ activeMessages }}
+      
+      <virtual-list
+        class="list"
+        :size="50"
+        :remain="8"
+        :totop='loadMore'
+        :onscroll='scroll'
+      >
+        <div
+          v-for="(message, index) of activeMessages"
+          :class="{ message: true, replies: message.username!=state.username, sent: message.username==state.username}"
+          :index="message.msid"
+          :key="message.msid"
+        >
           <span class='sender'>{{ message.username }}</span>
           <img :src="message.avatar" />
           <p>{{ message.content.text }}</p>
@@ -218,7 +231,6 @@ Vue.component("messages", {
       loading: false,
       state: store.data.state,
       messages: store.data.messages,
-      typing: store.data.typing,
     }
   },
   computed: {
@@ -251,7 +263,7 @@ Vue.component("messages", {
       var from = { room: this.state.activeRoom }
 
       if (this.messages[this.state.activeRoom].length) {
-        from.message = this.messages[this.state.activeRoom][0].message
+        from.msid = this.messages[this.state.activeRoom][0].msid
       }
 
       var messageList = this.$el.querySelector(".list")
@@ -379,7 +391,7 @@ Vue.component("login", {
         CryptoJS.SHA256(username).toString() +
         "?d=retro"
 
-      socket.emit("pass user", { username, avatar }, function (err, response) {
+      socket.emit("init user", { username, avatar }, function (err, response) {
         if (err) {
           return console.error(err)
         }
@@ -408,6 +420,7 @@ socket.emit("room list", function (err, rooms) {
 
 // Listen for new messages from the server, and add them to the local store.
 socket.on("new message", function (message) {
+  // console.log("new message")
   store.liveMessage(message)
 })
 
