@@ -57,7 +57,7 @@ io.on("connection", function (socket) {
   })
 
   // when the client emits 'new message', this listens and executes
-  socket.on("new message", async function (data, callback) {
+  socket.on("newMessage", async function (data, callback) {
     if (!socket.authenticated) {
       // Don't allow people not authenticated to send a message
       return callback("Can't send a message until you are authenticated")
@@ -89,7 +89,7 @@ io.on("connection", function (socket) {
     return callback(null, messageBody)
   })
 
-  socket.on("message list", async function (from, callback) {
+  socket.on("messageList", async function (from, callback) {
     var messages
 
     if (!from.room || !_.isString(from.room)) {
@@ -105,49 +105,7 @@ io.on("connection", function (socket) {
     return callback(null, messages)
   })
 
-  // Client wants a list of rooms
-  socket.on("room list", function (callback) {
-    if (!_.isFunction(callback)) {
-      return
-    }
-
-    return callback(null, [
-      {
-        id: "general",
-        name: "방이름 #1",
-        preview: "한강고수부지",
-        image: "/images/Flags_01.png",
-        status: "none",
-        onlineCount: 0,
-      },
-      {
-        id: "fargate",
-        name: "방이름 #2",
-        preview: "강원도 태백",
-        image: "/images/Flags_02.png",
-        status: "none",
-        onlineCount: 0,
-      },
-      {
-        id: "eks",
-        name: "방이름 #3",
-        preview: "압구정 현대필",
-        image: "/images/Flags_03.png",
-        status: "none",
-        onlineCount: 0,
-      },
-      {
-        id: "ecs",
-        name: "방이름 #4",
-        preview: "Corny Characters",
-        image: "/images/Flags_04.png",
-        status: "none",
-        onlineCount: 0,
-      },
-    ])
-  })
-
-  socket.on("init user", function (data, callback) {
+  socket.on("initUser", function (data, callback) {
     if (!data.username) {
       return callback("Must pass a parameter `username` which is a string")
     }
@@ -171,12 +129,13 @@ io.on("connection", function (socket) {
     socket.present = true
 
     Presence.list(function (users) {
-      socket.emit("login", {
-        numUsers: users.length,
-      })
+      // further investigate on this... not sure if it's required at this time.
+      // socket.emit("login", {
+      //   numUsers: users.length,
+      // })
 
       // echo globally (all clients) that a person has connected
-      io.emit("user joined", {
+      io.emit("userJoined", {
         username: socket.username,
         avatar: socket.avatar,
         numUsers: users.length,
@@ -196,7 +155,7 @@ io.on("connection", function (socket) {
 
       Presence.list(function (users) {
         // echo globally (all clients) that a person has left
-        socket.broadcast.emit("user left", {
+        socket.broadcast.emit("userLeft", {
           username: socket.username,
           avatar: socket.avatar,
           numUsers: users.length,
